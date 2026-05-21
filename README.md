@@ -17,11 +17,8 @@ Widget file: `notion-music-widget.html`
 2. Copy the public page URL.
 3. Paste this URL in Notion using `/embed`.
 
-## Local preview
+## Local preview (VS Code)
 
-```powershell
-python -m http.server 8080
-```
-
-Open:
-`http://localhost:8080/notion-music-widget.html`
+1. Open the project folder in VS Code.
+2. Install the `Live Server` extension (if not installed yet).
+3. Right-click `notion-music-widget.html` and choose `Open with Live Server`.

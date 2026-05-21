@@ -45,9 +45,6 @@
         radial-gradient(circle at 20% 18%, rgba(186, 255, 213, 0.17), transparent 38%),
         radial-gradient(circle at 84% 80%, rgba(127, 255, 168, 0.19), transparent 46%),
         linear-gradient(145deg, var(--bg-soft), var(--bg-mid) 56%, var(--bg-deep));
-      box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-        0 10px 26px rgba(8, 24, 16, 0.42);
       overflow: hidden;
     }
 
@@ -103,15 +100,13 @@
       height: 8px;
       border-radius: 999px;
       background: var(--inactive);
-      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
     }
 
     .dot.active {
       background: var(--active);
-      box-shadow: 0 0 10px rgba(180, 255, 208, 0.8);
     }
 
-    #player {
+    #playerFrame {
       position: absolute;
       left: -9999px;
       width: 1px;
@@ -144,13 +139,20 @@
     </button>
   </div>
 
-  <div id="player" aria-hidden="true"></div>
+  <iframe
+    id="playerFrame"
+    title="Background audio"
+    aria-hidden="true"
+    allow="autoplay; encrypted-media"
+    referrerpolicy="origin"
+  ></iframe>
 
-  <script src="https://www.youtube.com/iframe_api"></script>
   <script>
     const VIDEO_ID = "JCKBaJDRMw4";
+    const YT_ORIGIN = "https://www.youtube.com";
     const playBtn = document.getElementById("playBtn");
     const muteBtn = document.getElementById("muteBtn");
+    const playerFrame = document.getElementById("playerFrame");
     const playIcon = document.getElementById("playIcon");
     const wave1 = document.getElementById("wave1");
     const wave2 = document.getElementById("wave2");
@@ -158,12 +160,18 @@
     const playDot = document.getElementById("playDot");
     const muteDot = document.getElementById("muteDot");
 
-    let player;
-    let isPlaying = false;
+    let isPlaying = true;
     let isMuted = true;
 
     const PLAY_ICON = "M8 6v12l10-6z";
     const STOP_ICON = "M7 7h10v10H7z";
+    const originParam = window.location.origin && window.location.origin !== "null"
+      ? "&origin=" + encodeURIComponent(window.location.origin)
+      : "";
+    const EMBED_URL =
+      "https://www.youtube.com/embed/" + VIDEO_ID +
+      "?autoplay=1&mute=1&controls=0&loop=1&playlist=" + VIDEO_ID +
+      "&modestbranding=1&rel=0&playsinline=1&enablejsapi=1" + originParam;
 
     function updateUi() {
       playIcon.setAttribute("d", isPlaying ? STOP_ICON : PLAY_ICON);
@@ -176,64 +184,48 @@
       muteDot.classList.toggle("active", !isMuted);
     }
 
-    function safePlay() {
-      if (!player) return;
-      player.playVideo();
-      isPlaying = true;
-      updateUi();
+    function postToPlayer(func, args) {
+      const target = playerFrame.contentWindow;
+      if (!target) return;
+      target.postMessage(JSON.stringify({
+        event: "command",
+        func: func,
+        args: args || []
+      }), YT_ORIGIN);
     }
 
-    window.onYouTubeIframeAPIReady = function onYouTubeIframeAPIReady() {
-      player = new YT.Player("player", {
-        videoId: VIDEO_ID,
-        playerVars: {
-          autoplay: 1,
-          controls: 0,
-          loop: 1,
-          playlist: VIDEO_ID,
-          modestbranding: 1,
-          rel: 0,
-          playsinline: 1
-        },
-        events: {
-          onReady: (event) => {
-            event.target.mute();
-            isMuted = true;
-            safePlay();
-            updateUi();
-          },
-          onStateChange: (event) => {
-            isPlaying = event.data === YT.PlayerState.PLAYING;
-            if (event.data === YT.PlayerState.ENDED) {
-              safePlay();
-            }
-            updateUi();
-          }
-        }
-      });
-    };
-
     playBtn.addEventListener("click", () => {
-      if (!player) return;
       if (isPlaying) {
-        player.pauseVideo();
+        postToPlayer("pauseVideo");
         isPlaying = false;
       } else {
-        safePlay();
+        postToPlayer("playVideo");
+        isPlaying = true;
       }
       updateUi();
     });
 
     muteBtn.addEventListener("click", () => {
-      if (!player) return;
       if (isMuted) {
-        player.unMute();
+        postToPlayer("unMute");
         isMuted = false;
       } else {
-        player.mute();
+        postToPlayer("mute");
         isMuted = true;
       }
       updateUi();
+    });
+
+    playerFrame.src = EMBED_URL;
+    playerFrame.addEventListener("load", () => {
+      setTimeout(() => {
+        postToPlayer("mute");
+        postToPlayer("playVideo");
+      }, 350);
+      setTimeout(() => {
+        postToPlayer("mute");
+        postToPlayer("playVideo");
+      }, 1200);
     });
 
     updateUi();
