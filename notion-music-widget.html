@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notion Music Widget</title>
+  <style>
+    :root {
+      --bg-deep: #0d2417;
+      --bg-mid: #1f5137;
+      --bg-soft: #2f6f4d;
+      --border: rgba(186, 255, 213, 0.34);
+      --icon: #e8ffe7;
+      --btn: rgba(238, 255, 240, 0.14);
+      --btn-hover: rgba(238, 255, 240, 0.24);
+      --active: #b4ffd0;
+      --inactive: rgba(201, 236, 210, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+    }
+
+    .widget {
+      width: 172px;
+      height: 172px;
+      margin: 0;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 14px;
+      border-radius: 26px;
+      border: 1px solid var(--border);
+      background:
+        radial-gradient(circle at 20% 18%, rgba(186, 255, 213, 0.17), transparent 38%),
+        radial-gradient(circle at 84% 80%, rgba(127, 255, 168, 0.19), transparent 46%),
+        linear-gradient(145deg, var(--bg-soft), var(--bg-mid) 56%, var(--bg-deep));
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+        0 10px 26px rgba(8, 24, 16, 0.42);
+      overflow: hidden;
+    }
+
+    .btn {
+      width: 56px;
+      height: 56px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--btn);
+      color: var(--icon);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: background 120ms ease, transform 120ms ease;
+      backdrop-filter: blur(6px);
+    }
+
+    .btn:hover {
+      background: var(--btn-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn svg {
+      width: 24px;
+      height: 24px;
+      fill: none;
+      stroke: var(--icon);
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .btn.play-btn svg path {
+      fill: var(--icon);
+      stroke: none;
+    }
+
+    .status {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--inactive);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+    }
+
+    .dot.active {
+      background: var(--active);
+      box-shadow: 0 0 10px rgba(180, 255, 208, 0.8);
+    }
+
+    #player {
+      position: absolute;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="widget">
+    <div class="status">
+      <div id="playDot" class="dot"></div>
+      <div id="muteDot" class="dot"></div>
+    </div>
+
+    <button id="playBtn" class="btn play-btn" aria-label="Play or stop">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path id="playIcon" d="M8 6v12l10-6z"></path>
+      </svg>
+    </button>
+
+    <button id="muteBtn" class="btn" aria-label="Mute or unmute">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 10h4l5-4v12l-5-4H5z"></path>
+        <path id="wave1" d="M16.2 9.5c1.6 1.4 1.6 3.6 0 5"></path>
+        <path id="wave2" d="M18.8 7.5c2.8 2.6 2.8 6.4 0 9"></path>
+        <path id="muteSlash" d="M4 4l16 16"></path>
+      </svg>
+    </button>
+  </div>
+
+  <div id="player" aria-hidden="true"></div>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script>
+    const VIDEO_ID = "JCKBaJDRMw4";
+    const playBtn = document.getElementById("playBtn");
+    const muteBtn = document.getElementById("muteBtn");
+    const playIcon = document.getElementById("playIcon");
+    const wave1 = document.getElementById("wave1");
+    const wave2 = document.getElementById("wave2");
+    const muteSlash = document.getElementById("muteSlash");
+    const playDot = document.getElementById("playDot");
+    const muteDot = document.getElementById("muteDot");
+
+    let player;
+    let isPlaying = false;
+    let isMuted = true;
+
+    const PLAY_ICON = "M8 6v12l10-6z";
+    const STOP_ICON = "M7 7h10v10H7z";
+
+    function updateUi() {
+      playIcon.setAttribute("d", isPlaying ? STOP_ICON : PLAY_ICON);
+
+      wave1.style.display = isMuted ? "none" : "block";
+      wave2.style.display = isMuted ? "none" : "block";
+      muteSlash.style.display = isMuted ? "block" : "none";
+
+      playDot.classList.toggle("active", isPlaying);
+      muteDot.classList.toggle("active", !isMuted);
+    }
+
+    function safePlay() {
+      if (!player) return;
+      player.playVideo();
+      isPlaying = true;
+      updateUi();
+    }
+
+    window.onYouTubeIframeAPIReady = function onYouTubeIframeAPIReady() {
+      player = new YT.Player("player", {
+        videoId: VIDEO_ID,
+        playerVars: {
+          autoplay: 1,
+          controls: 0,
+          loop: 1,
+          playlist: VIDEO_ID,
+          modestbranding: 1,
+          rel: 0,
+          playsinline: 1
+        },
+        events: {
+          onReady: (event) => {
+            event.target.mute();
+            isMuted = true;
+            safePlay();
+            updateUi();
+          },
+          onStateChange: (event) => {
+            isPlaying = event.data === YT.PlayerState.PLAYING;
+            if (event.data === YT.PlayerState.ENDED) {
+              safePlay();
+            }
+            updateUi();
+          }
+        }
+      });
+    };
+
+    playBtn.addEventListener("click", () => {
+      if (!player) return;
+      if (isPlaying) {
+        player.pauseVideo();
+        isPlaying = false;
+      } else {
+        safePlay();
+      }
+      updateUi();
+    });
+
+    muteBtn.addEventListener("click", () => {
+      if (!player) return;
+      if (isMuted) {
+        player.unMute();
+        isMuted = false;
+      } else {
+        player.mute();
+        isMuted = true;
+      }
+      updateUi();
+    });
+
+    updateUi();
+  </script>
+</body>
+</html>
